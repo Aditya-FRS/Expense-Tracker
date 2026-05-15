@@ -29,8 +29,8 @@
 
       <div class="form-field">
         <label>Email</label>
-        <input type="email" id="login-email" placeholder="Loading…" readonly
-          style="background:var(--surface2);color:var(--text2);cursor:default;border-color:var(--border)"/>
+        <input type="email" id="login-email" placeholder="Enter your email"
+          autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()"/>
       </div>
       <div class="form-field">
         <label>Password</label>
