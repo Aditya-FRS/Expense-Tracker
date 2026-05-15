@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#2563eb"/>
+  <title>💰 Expense Tracker Pro</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="/css/styles.css"/>
+</head>
+<body>
+
+<!-- ══════════════ AUTH SCREEN ══════════════ -->
+<div id="auth-screen">
+  <div class="auth-wrap">
+    <div class="auth-logo">
+      <span class="auth-logo-icon">💰</span>
+      <h1>Expense Tracker <span>Pro</span></h1>
+      <p>Personal &bull; Private &bull; Secure</p>
+    </div>
+
+    <div class="auth-card">
+      <p style="font-size:.82rem;color:var(--text3);text-align:center;margin-bottom:1.25rem;font-weight:600;letter-spacing:.02em">🔒 Private access — enter your password to continue</p>
+
+      <div class="form-field">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="Loading…" readonly
+          style="background:var(--surface2);color:var(--text2);cursor:default;border-color:var(--border)"/>
+      </div>
+      <div class="form-field">
+        <label>Password</label>
+        <div class="pass-wrap">
+          <input type="password" id="login-pass" placeholder="Enter your password"
+            autocomplete="current-password" onkeydown="if(event.key==='Enter')handleLogin()"/>
+          <button class="pass-toggle" onclick="togglePass('login-pass',this)">👁</button>
+        </div>
+      </div>
+      <div class="auth-error hidden" id="login-error"></div>
+      <button class="btn-login" id="login-btn" onclick="handleLogin()">🔐 Sign In</button>
+    </div>
+
+    <p class="auth-footer">Private access only &mdash; no sign up available 🔒</p>
+  </div>
+</div>
+
+<!-- ══════════════ MAIN APP ══════════════ -->
+<div id="app" class="hidden">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-left">
+      <button class="hamburger" onclick="toggleSidebar()">☰</button>
+      <span class="app-logo-text">💰 Expense<b>Pro</b></span>
+    </div>
+    <div class="header-center">
+      <div class="month-nav">
+        <button class="month-btn" onclick="changeMonth(-1)">‹</button>
+        <span id="month-label" class="month-text">May 2026</span>
+        <button class="month-btn" onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="conn-badge" id="conn-badge" title="Firebase status"></div>
+      <button class="hdr-btn" onclick="toggleTheme()" id="theme-btn" title="Toggle theme">🌙</button>
+      <button class="hdr-btn notif-btn" onclick="toggleNotifPanel()" title="Notifications">
+        🔔<span class="notif-dot hidden" id="notif-dot"></span>
+      </button>
+      <div class="user-pill" onclick="toggleUserMenu()">
+        <span id="hdr-avatar" class="pill-avatar">😎</span>
+        <span id="hdr-name" class="pill-name">Vamsi</span>
+        <span class="pill-caret">▾</span>
+      </div>
+      <div class="user-menu hidden" id="user-menu">
+        <div class="um-item" onclick="switchTab('settings');closeMenus()">⚙️ Settings</div>
+        <div class="um-item" onclick="exportAllCSV()">⬇️ Export All</div>
+        <div class="um-item" onclick="openIncomeModal()">💵 Add Income</div>
+        <div class="um-sep"></div>
+        <div class="um-item danger" onclick="handleLogout()">🚪 Sign Out</div>
+      </div>
+      <div class="notif-panel hidden" id="notif-panel">
+        <div class="notif-header"><b>Notifications</b><button onclick="clearNotifs()">Clear all</button></div>
+        <div id="notif-list"></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="sidebar-overlay hidden" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="layout-wrap">
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <button class="snav-btn active" onclick="switchTab('dashboard')" data-tab="dashboard">📊 <span>Dashboard</span></button>
+        <button class="snav-btn" onclick="switchTab('add')"       data-tab="add">➕ <span>Add Expense</span></button>
+        <button class="snav-btn" onclick="switchTab('income')"    data-tab="income">💵 <span>Income</span></button>
+        <button class="snav-btn" onclick="switchTab('accounts')"  data-tab="accounts">💳 <span>Accounts</span></button>
+        <button class="snav-btn" onclick="switchTab('history')"   data-tab="history">📋 <span>History</span></button>
+        <button class="snav-btn" onclick="switchTab('analytics')" data-tab="analytics">📈 <span>Analytics</span></button>
+        <button class="snav-btn" onclick="switchTab('goals')"     data-tab="goals">🎯 <span>Goals</span></button>
+        <button class="snav-btn" onclick="switchTab('budget')"    data-tab="budget">💰 <span>Budget</span></button>
+        <button class="snav-btn" onclick="switchTab('calendar')"  data-tab="calendar">📅 <span>Calendar</span></button>
+        <button class="snav-btn" onclick="switchTab('settings')"  data-tab="settings">⚙️ <span>Settings</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sf-user">
+          <span id="sf-avatar" class="sf-avatar">😎</span>
+          <div><div id="sf-name" class="sf-name">Vamsi</div><div class="sf-sub">Personal</div></div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+
+      <!-- TAB BAR -->
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('dashboard')" id="tabt-dashboard">📊 <span>Home</span></button>
+        <button class="tab-btn" onclick="switchTab('add')"       id="tabt-add">➕ <span>Add</span></button>
+        <button class="tab-btn" onclick="switchTab('income')"    id="tabt-income">💵 <span>Income</span></button>
+        <button class="tab-btn" onclick="switchTab('accounts')"  id="tabt-accounts">💳 <span>Accounts</span></button>
+        <button class="tab-btn" onclick="switchTab('history')"   id="tabt-history">📋 <span>History</span></button>
+        <button class="tab-btn" onclick="switchTab('analytics')" id="tabt-analytics">📈 <span>Charts</span></button>
+        <button class="tab-btn" onclick="switchTab('goals')"     id="tabt-goals">🎯 <span>Goals</span></button>
+        <button class="tab-btn" onclick="switchTab('budget')"    id="tabt-budget">💰 <span>Budget</span></button>
+        <button class="tab-btn" onclick="switchTab('calendar')"  id="tabt-calendar">📅 <span>Calendar</span></button>
+        <button class="tab-btn" onclick="switchTab('settings')"  id="tabt-settings">⚙️ <span>Settings</span></button>
+      </div>
+
+      <!-- ── DASHBOARD ── -->
+      <section id="view-dashboard" class="view active">
+        <div class="view-title-row">
+          <div><h2 id="dash-greeting">Good morning! 👋</h2><p class="view-sub" id="dash-sub">May 2026 overview</p></div>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn-sm-success" onclick="openIncomeModal()">+ Income</button>
+            <button class="btn-sm-primary" onclick="switchTab('add')">+ Expense</button>
+          </div>
+        </div>
+
+        <!-- KPI Cards — 6 cards -->
+        <div class="kpi-row kpi-six">
+          <div class="kpi-card blue"><div class="kpi-icon">💸</div><div><div class="kpi-lbl">Spent</div><div class="kpi-val" id="kpi-spent">₹0</div><div class="kpi-sub" id="kpi-vs-last"></div></div></div>
+          <div class="kpi-card green"><div class="kpi-icon">🏦</div><div><div class="kpi-lbl">Budget Left</div><div class="kpi-val" id="kpi-left">₹0</div><div class="kpi-sub" id="kpi-left-pct"></div></div></div>
+          <div class="kpi-card teal"><div class="kpi-icon">💵</div><div><div class="kpi-lbl">Income</div><div class="kpi-val" id="kpi-income">₹0</div><div class="kpi-sub" id="kpi-income-sub">this month</div></div></div>
+          <div class="kpi-card emerald"><div class="kpi-icon">📈</div><div><div class="kpi-lbl">Net Savings</div><div class="kpi-val" id="kpi-savings">₹0</div><div class="kpi-sub" id="kpi-savings-rate"></div></div></div>
+          <div class="kpi-card orange"><div class="kpi-icon">🧾</div><div><div class="kpi-lbl">Transactions</div><div class="kpi-val" id="kpi-tx">0</div><div class="kpi-sub" id="kpi-avg"></div></div></div>
+          <div class="kpi-card purple"><div class="kpi-icon">🔥</div><div><div class="kpi-lbl">Streak</div><div class="kpi-val" id="kpi-streak">0</div><div class="kpi-sub">no-spend days</div></div></div>
+        </div>
+
+        <!-- Budget bar -->
+        <div class="panel">
+          <div class="panel-hdr"><span>Monthly Budget</span><button class="link-btn" onclick="openBudgetModal()">Edit</button></div>
+          <div class="budget-wrap">
+            <div class="budget-track"><div class="budget-fill" id="budget-fill"></div></div>
+            <div class="budget-labels"><span id="budget-spent-lbl">₹0 spent</span><span id="budget-ttl-lbl">of ₹0</span></div>
+          </div>
+        </div>
+
+        <!-- Report Card + Prediction + Week Widget -->
+        <div class="three-col-row">
+          <div class="panel">
+            <div class="panel-hdr"><span>📊 Report Card</span></div>
+            <div class="report-card-body">
+              <div class="grade-circle" id="grade-circle">A</div>
+              <div id="grade-msg" class="grade-msg">Great spending!</div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-hdr"><span>🔮 Month-End Prediction</span></div>
+            <div class="prediction-body">
+              <div class="predict-val" id="predict-val">₹0</div>
+              <div class="predict-sub" id="predict-sub">estimated by month end</div>
+              <div class="predict-bar-wrap"><div class="predict-bar-bg"><div class="predict-bar-fill" id="predict-bar-fill"></div></div></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-hdr"><span>📅 This Week</span></div>
+            <div class="prediction-body">
+              <div class="predict-val" id="week-total">₹0</div>
+              <div class="predict-sub" id="week-sub" style="min-height:1rem"></div>
+              <div class="predict-bar-wrap"><div class="predict-bar-bg"><div class="predict-bar-fill" id="week-bar-fill"></div></div></div>
+              <div style="font-size:.72rem;color:var(--text3);margin-top:.35rem">Weekly budget: <span id="week-budget-lbl">₹0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Add -->
+        <div class="panel quick-add-panel">
+          <div class="panel-hdr"><span>⚡ Quick Add</span></div>
+          <div class="quick-add-row">
+            <input type="number" id="q-amount" class="q-inp" placeholder="₹ Amount" min="0" onkeydown="if(event.key==='Enter')quickAdd()"/>
+            <div class="q-cats" id="q-cats"></div>
+            <input type="text" id="q-note" class="q-note-inp" placeholder="Note…" onkeydown="if(event.key==='Enter')quickAdd()"/>
+            <button class="btn-process" onclick="quickAdd()">⚡ Add</button>
+          </div>
+        </div>
+
+        <!-- Smart Insights -->
+        <div class="panel" id="insights-panel">
+          <div class="panel-hdr"><span>🤖 Smart Insights</span></div>
+          <div id="insights-list" class="insights-list"></div>
+        </div>
+
+        <!-- Recent + Top cats -->
+        <div class="two-col-row">
+          <div class="panel">
+            <div class="panel-hdr"><span>Recent Expenses</span><button class="link-btn" onclick="switchTab('history')">All →</button></div>
+            <div id="recent-list" class="exp-list"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-hdr"><span>Top Categories</span></div>
+            <div id="top-cats" class="top-cats"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── ADD EXPENSE ── -->
+      <section id="view-add" class="view">
+        <div class="add-card">
+          <h2 class="add-title">➕ Add Expense</h2>
+          <div class="amount-wrap">
+            <select id="add-currency" class="currency-sel" onchange="updateCurrencySymbol()">
+              <option value="INR">₹ INR</option>
+              <option value="USD">$ USD</option>
+              <option value="EUR">€ EUR</option>
+              <option value="GBP">£ GBP</option>
+              <option value="AED">د AED</option>
+              <option value="SGD">S$ SGD</option>
+            </select>
+            <input type="number" id="add-amount" class="amount-inp" placeholder="0.00" min="0" step="0.01" oninput="updateExpClosingBal()"/>
+          </div>
+
+          <div class="field-lbl">Category *</div>
+          <div class="cat-grid" id="add-cat-grid"></div>
+          <input type="hidden" id="add-cat"/>
+
+          <div class="two-inp-row">
+            <div class="inp-col">
+              <div class="field-lbl">Date *</div>
+              <input type="date" id="add-date" class="field-inp"/>
+            </div>
+            <div class="inp-col flex2">
+              <div class="field-lbl">Note / Description</div>
+              <input type="text" id="add-note" class="field-inp" placeholder="What was this for?"/>
+            </div>
+          </div>
+
+          <div class="field-lbl">Tags <span class="field-hint">(comma separated, e.g. lunch, work, travel)</span></div>
+          <input type="text" id="add-tags" class="field-inp" placeholder="food, client, trip…"/>
+
+          <div class="field-lbl">Payment Method</div>
+          <div class="payment-opts">
+            <label class="pay-lbl"><input type="radio" name="pay" value="UPI" checked/> 📱 UPI</label>
+            <label class="pay-lbl"><input type="radio" name="pay" value="Cash"/> 💵 Cash</label>
+            <label class="pay-lbl"><input type="radio" name="pay" value="Card"/> 💳 Card</label>
+            <label class="pay-lbl"><input type="radio" name="pay" value="NetBanking"/> 🏦 Net Banking</label>
+            <label class="pay-lbl"><input type="radio" name="pay" value="Wallet"/> 👛 Wallet</label>
+          </div>
+
+          <div class="opts-box">
+            <label class="chk-row">
+              <input type="checkbox" id="add-recurring" onchange="toggleRecurring()"/>
+              <div class="chk-text"><b>🔄 Recurring Expense</b><span>Repeats every month / week on the same date</span></div>
+            </label>
+            <div class="recurring-sub hidden" id="recurring-sub">
+              <select id="add-freq" class="field-inp" style="margin-top:.5rem">
+                <option value="monthly">Monthly</option>
+                <option value="weekly">Weekly</option>
+                <option value="quarterly">Quarterly</option>
+              </select>
+            </div>
+            <label class="chk-row" style="margin-top:.75rem">
+              <input type="checkbox" id="add-split" onchange="toggleSplit()"/>
+              <div class="chk-text"><b>🤝 Split Expense</b><span>Shared with someone — track your share only</span></div>
+            </label>
+            <div class="split-sub hidden" id="split-sub">
+              <input type="text" id="add-split-with" class="field-inp" placeholder="Split with (name)" style="margin-top:.5rem"/>
+            </div>
+          </div>
+
+          <div class="two-inp-row" style="align-items:flex-end">
+            <div class="inp-col flex2">
+              <div class="field-lbl">Debit from Account <span class="field-hint">(choose which account this expense comes from)</span></div>
+              <select id="add-account" class="field-inp" onchange="updateExpClosingBal()">
+                <option value="">— No account selected —</option>
+              </select>
+            </div>
+            <div class="inp-col" style="min-width:130px">
+              <div class="field-lbl">Balance after debit</div>
+              <div class="closing-bal-hint" id="exp-closing-bal">—</div>
+            </div>
+          </div>
+
+          <div class="field-lbl">Receipt <span class="field-hint">(optional, max 10MB)</span></div>
+          <div class="receipt-zone" id="receipt-zone" onclick="document.getElementById('receipt-file').click()" ondragover="onDragOver(event)" ondrop="onDrop(event)">
+            <span class="receipt-icon">📎</span>
+            <span id="receipt-label">Tap or drag to upload receipt</span>
+            <input type="file" id="receipt-file" accept="image/*,.pdf" class="hidden" onchange="onFileSelect(event)"/>
+          </div>
+          <div class="receipt-preview hidden" id="receipt-preview">
+            <img id="receipt-img" src="" alt="Receipt"/>
+            <button class="btn-remove-receipt" onclick="removeReceipt()">✕ Remove</button>
+          </div>
+
+          <div class="action-btns">
+            <button class="btn-process" onclick="addExpense()">⚡ Process Expense</button>
+            <button class="btn-clear-all" onclick="clearAddForm()">🗑 Clear All</button>
+          </div>
+          <button class="btn-view-processed" onclick="switchTab('history')">👁 View All Expenses</button>
+        </div>
+      </section>
+
+      <!-- ── INCOME ── -->
+      <section id="view-income" class="view">
+        <div class="view-title-row">
+          <div><h2>💵 Income Tracker</h2><p class="view-sub">Track your earnings this month</p></div>
+          <button class="btn-sm-success" onclick="openIncomeModal()">+ Add Income</button>
+        </div>
+
+        <!-- Income Summary Cards -->
+        <div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">
+          <div class="kpi-card teal"><div class="kpi-icon">💵</div><div><div class="kpi-lbl">Total Income</div><div class="kpi-val" id="inc-total">₹0</div><div class="kpi-sub" id="inc-count">0 entries</div></div></div>
+          <div class="kpi-card blue"><div class="kpi-icon">💸</div><div><div class="kpi-lbl">Total Expenses</div><div class="kpi-val" id="inc-exp">₹0</div><div class="kpi-sub">this month</div></div></div>
+          <div class="kpi-card emerald"><div class="kpi-icon">💎</div><div><div class="kpi-lbl">Net Savings</div><div class="kpi-val" id="inc-savings">₹0</div><div class="kpi-sub" id="inc-rate">0% savings rate</div></div></div>
+        </div>
+
+        <!-- Savings rate bar -->
+        <div class="panel">
+          <div class="panel-hdr"><span>Savings Rate</span></div>
+          <div class="budget-wrap">
+            <div class="budget-track"><div class="budget-fill" id="savings-fill" style="background:linear-gradient(90deg,#059669,#10b981)"></div></div>
+            <div class="budget-labels"><span id="savings-rate-lbl">0% saved</span><span id="savings-target-lbl">target: 20%+</span></div>
+          </div>
+        </div>
+
+        <!-- Income list -->
+        <div class="panel">
+          <div class="panel-hdr"><span>Income Entries</span><button class="btn-export" onclick="exportIncomeCSV()">⬇ Export</button></div>
+          <div id="income-list" class="exp-list"></div>
+        </div>
+      </section>
+
+      <!-- ── ACCOUNTS ── -->
+      <section id="view-accounts" class="view">
+        <div class="view-title-row">
+          <div><h2>💳 My Accounts</h2><p class="view-sub">Track balances across all your money sources</p></div>
+          <button class="btn-sm-primary" onclick="openAddAccountModal()">+ Add Account</button>
+        </div>
+
+        <!-- Net Worth bar -->
+        <div class="panel" id="acc-networth-panel">
+          <div class="panel-hdr"><span>💰 Total Net Worth</span><span class="kpi-val" id="acc-net-worth" style="font-size:1.1rem;color:var(--success)">₹0</span></div>
+          <div id="acc-cards-grid" class="acc-cards-grid"></div>
+        </div>
+
+        <!-- Ledger filter -->
+        <div class="panel">
+          <div class="panel-hdr">
+            <span>📒 Ledger — Transactions with Closing Balance</span>
+            <select id="acc-ledger-filter" class="filter-sel" onchange="renderAccountsTab()">
+              <option value="">All Accounts</option>
+            </select>
+          </div>
+          <div id="acc-ledger" class="exp-list"></div>
+        </div>
+      </section>
+
+      <!-- ── HISTORY ── -->
+      <section id="view-history" class="view">
+        <div class="panel">
+          <div class="panel-hdr">
+            <span id="hist-title">History</span>
+            <div class="hdr-acts">
+              <button class="btn-export" onclick="exportMonthCSV()">⬇ Export</button>
+            </div>
+          </div>
+          <div class="hist-filters">
+            <input type="text" id="hist-search" class="search-inp" placeholder="🔍 Search by note, tag, amount…" oninput="renderHistory()"/>
+            <select id="hist-cat-filter" class="filter-sel" onchange="renderHistory()">
+              <option value="">All Categories</option>
+            </select>
+            <select id="hist-pay-filter" class="filter-sel" onchange="renderHistory()">
+              <option value="">All Payments</option>
+              <option>UPI</option><option>Cash</option><option>Card</option>
+              <option>NetBanking</option><option>Wallet</option>
+            </select>
+            <select id="hist-sort" class="filter-sel" onchange="renderHistory()">
+              <option value="date-desc">Newest first</option>
+              <option value="date-asc">Oldest first</option>
+              <option value="amount-desc">Highest amount</option>
+              <option value="amount-asc">Lowest amount</option>
+            </select>
+          </div>
+          <div class="hist-filters" style="border-top:none;padding-top:0">
+            <span style="font-size:.8rem;font-weight:600;color:var(--text3);white-space:nowrap">Date range:</span>
+            <input type="date" id="hist-from" class="filter-sel" onchange="renderHistory()" title="From date"/>
+            <input type="date" id="hist-to" class="filter-sel" onchange="renderHistory()" title="To date"/>
+            <button class="btn-export" onclick="clearHistFilters()">✕ Clear filters</button>
+            <select id="hist-group" class="filter-sel" onchange="renderHistory()">
+              <option value="date">Group by date</option>
+              <option value="category">Group by category</option>
+              <option value="none">No grouping</option>
+            </select>
+          </div>
+          <div class="hist-stats" id="hist-stats"></div>
+          <div id="hist-list" class="exp-list"></div>
+        </div>
+      </section>
+
+      <!-- ── ANALYTICS ── -->
+      <section id="view-analytics" class="view">
+        <div class="view-title-row">
+          <h2>📈 Analytics</h2>
+          <select id="ana-range" class="filter-sel" onchange="renderAnalytics()">
+            <option value="3">Last 3 months</option>
+            <option value="6" selected>Last 6 months</option>
+            <option value="12">Last 12 months</option>
+          </select>
+        </div>
+        <div class="ana-stats" id="ana-stats"></div>
+        <div class="charts-grid">
+          <div class="panel chart-panel wide">
+            <div class="panel-hdr"><span>Spending vs Budget Trend</span></div>
+            <div class="chart-box"><canvas id="ch-trend"></canvas></div>
+          </div>
+          <div class="panel chart-panel">
+            <div class="panel-hdr"><span>By Category</span></div>
+            <div class="chart-box donut-box"><canvas id="ch-cat"></canvas><div class="donut-lbl" id="donut-lbl"></div></div>
+            <div id="cat-legend" class="cat-legend-list"></div>
+          </div>
+          <div class="panel chart-panel">
+            <div class="panel-hdr"><span>Payment Methods</span></div>
+            <div class="chart-box"><canvas id="ch-pay"></canvas></div>
+          </div>
+          <div class="panel chart-panel wide">
+            <div class="panel-hdr"><span>Daily Spending This Month</span></div>
+            <div class="chart-box"><canvas id="ch-daily"></canvas></div>
+          </div>
+          <div class="panel chart-panel">
+            <div class="panel-hdr"><span>Day of Week Pattern</span></div>
+            <div class="chart-box"><canvas id="ch-dow"></canvas></div>
+          </div>
+          <div class="panel chart-panel">
+            <div class="panel-hdr"><span>Top Merchants / Notes</span></div>
+            <div id="top-merchants" class="top-merchants"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── GOALS ── -->
+      <section id="view-goals" class="view">
+        <div class="view-title-row">
+          <div><h2>🎯 Savings Goals</h2><p class="view-sub">Track what you're saving towards</p></div>
+          <button class="btn-sm-primary" onclick="openGoalModal()">+ New Goal</button>
+        </div>
+        <div id="goals-grid" class="goals-grid"></div>
+      </section>
+
+      <!-- ── BUDGET ── -->
+      <section id="view-budget" class="view">
+        <div class="view-title-row">
+          <div><h2>💰 Budget Manager</h2></div>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn-sm-primary" onclick="openCatBudgetModal()">Category Limits</button>
+            <button class="btn-sm-primary" onclick="openBudgetModal()">Edit Budget</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-hdr"><span>Overall Monthly Budget</span></div>
+          <div class="budget-wrap">
+            <div class="budget-track"><div class="budget-fill" id="bv-fill"></div></div>
+            <div class="budget-labels"><span id="bv-spent">₹0 spent</span><span id="bv-total">of ₹0</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-hdr"><span>Category Budgets</span><button class="link-btn" onclick="openCatBudgetModal()">Edit</button></div>
+          <div id="cat-budgets-list" class="cat-budgets-list"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-hdr"><span>6-Month History</span></div>
+          <div class="chart-box"><canvas id="ch-budget-history"></canvas></div>
+        </div>
+      </section>
+
+      <!-- ── CALENDAR ── -->
+      <section id="view-calendar" class="view">
+        <div class="view-title-row"><h2>📅 Expense Calendar</h2></div>
+        <div class="panel">
+          <div id="calendar-grid" class="calendar-wrap"></div>
+        </div>
+      </section>
+
+      <!-- ── SETTINGS ── -->
+      <section id="view-settings" class="view">
+        <h2 style="margin-bottom:1rem">⚙️ Settings</h2>
+
+        <!-- Firebase Status -->
+        <div class="panel settings-panel">
+          <div class="panel-hdr"><span>🔌 Connection Status</span></div>
+          <div class="settings-body" style="padding:1rem 1.25rem">
+            <div id="fb-status-badge"></div>
+            <p style="font-size:.8rem;color:var(--text3);margin-top:.5rem">Demo mode stores data locally. Connect Firebase to sync across devices.</p>
+          </div>
+        </div>
+
+        <!-- Profile -->
+        <div class="panel settings-panel">
+          <div class="panel-hdr"><span>👤 Profile</span></div>
+          <div class="settings-body">
+            <div class="avatar-row" id="settings-avatar-row"></div>
+            <div class="two-inp-row">
+              <div class="inp-col"><div class="field-lbl">Name</div><input type="text" id="s-name" class="field-inp" onkeydown="if(event.key==='Enter')saveProfile()"/></div>
+              <div class="inp-col"><div class="field-lbl">Monthly Budget</div><input type="number" id="s-budget" class="field-inp" placeholder="e.g. 20000"/></div>
+            </div>
+            <div class="field-lbl">Default Currency</div>
+            <select id="s-currency" class="field-inp">
+              <option value="INR">₹ INR — Indian Rupee</option>
+              <option value="USD">$ USD — US Dollar</option>
+              <option value="EUR">€ EUR — Euro</option>
+              <option value="GBP">£ GBP — British Pound</option>
+              <option value="AED">د AED — UAE Dirham</option>
+              <option value="SGD">S$ SGD — Singapore Dollar</option>
+            </select>
+            <button class="btn-process" style="margin-top:1rem" onclick="saveProfile()">💾 Save Profile</button>
+          </div>
+        </div>
+
+        <!-- Preferences -->
+        <div class="panel settings-panel">
+          <div class="panel-hdr"><span>🎨 Preferences</span></div>
+          <div class="settings-body">
+            <div class="pref-row"><div><b>Dark Mode</b><p>Switch to dark theme</p></div><label class="toggle"><input type="checkbox" id="s-dark" onchange="applyTheme()"/><span class="tslider"></span></label></div>
+            <div class="pref-row"><div><b>Budget Alerts</b><p>Notify at 75% and 90% of budget</p></div><label class="toggle"><input type="checkbox" id="s-alerts" checked/><span class="tslider"></span></label></div>
+            <div class="pref-row"><div><b>Recurring Bill Reminders</b><p>Notify 2 days before bill is due</p></div><label class="toggle"><input type="checkbox" id="s-rec-remind" checked/><span class="tslider"></span></label></div>
+          </div>
+        </div>
+
+        <!-- Recurring Bills -->
+        <div class="panel settings-panel">
+          <div class="panel-hdr"><span>🔄 Recurring Bills</span><button class="link-btn" onclick="openRecurringModal()">+ Add</button></div>
+          <div id="recurring-list"></div>
+        </div>
+
+        <!-- Data -->
+        <div class="panel settings-panel">
+          <div class="panel-hdr"><span>📦 Data &amp; Export</span></div>
+          <div class="settings-body" style="display:flex;gap:.75rem;flex-wrap:wrap">
+            <button class="btn-process" onclick="exportAllCSV()">⬇ Export All Expenses CSV</button>
+            <button class="btn-process" style="background:linear-gradient(135deg,#059669,#10b981)" onclick="exportIncomeCSV()">⬇ Export Income CSV</button>
+            <button class="btn-clear-all" onclick="confirmClearData()">🗑 Clear All Data</button>
+          </div>
+        </div>
+
+        <!-- Firebase Setup Guide -->
+        <div class="panel settings-panel">
+          <div class="panel-hdr" style="cursor:pointer" onclick="toggleGuide()">
+            <span>🔥 Firebase Setup Guide</span>
+            <span id="guide-toggle-icon">▼</span>
+          </div>
+          <div id="firebase-guide" class="hidden">
+            <div class="guide-body">
+              <p class="guide-intro">Follow these steps to connect your app to Firebase (free) so your data syncs across all your devices.</p>
+
+              <div class="guide-step">
+                <div class="guide-num">1</div>
+                <div class="guide-content">
+                  <b>Create a Firebase Project</b>
+                  <p>Go to <a href="https://console.firebase.google.com" target="_blank" class="guide-link">console.firebase.google.com</a> → Click <b>Add project</b> → Enter a name (e.g. "my-expense-tracker") → Disable Google Analytics (optional) → Click <b>Create project</b></p>
+                </div>
+              </div>
+
+              <div class="guide-step">
+                <div class="guide-num">2</div>
+                <div class="guide-content">
+                  <b>Enable Email/Password Authentication</b>
+                  <p>In Firebase Console → <b>Authentication</b> → <b>Sign-in method</b> → Enable <b>Email/Password</b> → Also enable <b>Google</b> if you want Google login → Click <b>Save</b></p>
+                </div>
+              </div>
+
+              <div class="guide-step">
+                <div class="guide-num">3</div>
+                <div class="guide-content">
+                  <b>Set Up Firestore Database</b>
+                  <p>In Firebase Console → <b>Firestore Database</b> → <b>Create database</b> → Choose <b>Production mode</b> → Select a region (e.g. asia-south1 for India) → Click <b>Enable</b></p>
+                  <p style="margin-top:.5rem">Then go to <b>Rules</b> tab and paste:</p>
+                  <div class="code-block">
+                    <code>rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth.uid == uid;
+    }
+  }
+}</code>
+                    <button class="copy-btn" onclick="copyToClipboard(`rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid}/{document=**} {\n      allow read, write: if request.auth.uid == uid;\n    }\n  }\n}`, 'Rules copied!')">📋 Copy</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="guide-step">
+                <div class="guide-num">4</div>
+                <div class="guide-content">
+                  <b>Enable Firebase Storage</b>
+                  <p>In Firebase Console → <b>Storage</b> → <b>Get started</b> → Production mode → Click <b>Done</b></p>
+                  <p style="margin-top:.5rem">Go to <b>Rules</b> and paste:</p>
+                  <div class="code-block">
+                    <code>rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /receipts/{uid}/{allPaths=**} {
+      allow read, write: if request.auth.uid == uid;
+    }
+  }
+}</code>
+                    <button class="copy-btn" onclick="copyToClipboard(`rules_version = '2';\nservice firebase.storage {\n  match /b/{bucket}/o {\n    match /receipts/{uid}/{allPaths=**} {\n      allow read, write: if request.auth.uid == uid;\n    }\n  }\n}`, 'Storage rules copied!')">📋 Copy</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="guide-step">
+                <div class="guide-num">5</div>
+                <div class="guide-content">
+                  <b>Get Your App Config Keys</b>
+                  <p>In Firebase Console → ⚙️ <b>Project Settings</b> → <b>Your apps</b> → Click <b>Add app</b> → Web (</> icon) → Register app → Copy the <code>firebaseConfig</code> object values</p>
+                  <div class="config-table">
+                    <div class="config-row"><span class="config-key">apiKey</span><span class="config-desc">FIREBASE_API_KEY</span></div>
+                    <div class="config-row"><span class="config-key">authDomain</span><span class="config-desc">FIREBASE_AUTH_DOMAIN</span></div>
+                    <div class="config-row"><span class="config-key">projectId</span><span class="config-desc">FIREBASE_PROJECT_ID</span></div>
+                    <div class="config-row"><span class="config-key">storageBucket</span><span class="config-desc">FIREBASE_STORAGE_BUCKET</span></div>
+                    <div class="config-row"><span class="config-key">messagingSenderId</span><span class="config-desc">FIREBASE_MESSAGING_SENDER_ID</span></div>
+                    <div class="config-row"><span class="config-key">appId</span><span class="config-desc">FIREBASE_APP_ID</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="guide-step">
+                <div class="guide-num">6</div>
+                <div class="guide-content">
+                  <b>Deploy to Render (Free)</b>
+                  <p>1. Push your code to GitHub (git init → git add . → git commit -m "init" → push to GitHub)</p>
+                  <p>2. Go to <a href="https://render.com" target="_blank" class="guide-link">render.com</a> → New → Web Service → Connect your GitHub repo</p>
+                  <p>3. It auto-detects <code>render.yaml</code>. Then in <b>Environment Variables</b>, add the 6 Firebase keys above</p>
+                  <p>4. Click <b>Deploy</b> — your app goes live in ~2 minutes at <code>yourapp.onrender.com</code></p>
+                  <div class="guide-note">💡 <b>Free tier</b>: Render free plan spins down after 15 min inactivity. First load takes ~30 seconds. Upgrade to paid ($7/mo) for always-on.</div>
+                </div>
+              </div>
+
+              <div class="guide-step">
+                <div class="guide-num">7</div>
+                <div class="guide-content">
+                  <b>Run Locally for Testing</b>
+                  <div class="code-block">
+                    <code>cd "Tracker ERp"
+npm install
+node server.js
+# Opens at http://localhost:3000</code>
+                    <button class="copy-btn" onclick="copyToClipboard('npm install && node server.js', 'Command copied!')">📋 Copy</button>
+                  </div>
+                  <p style="margin-top:.5rem">Without Firebase env vars it runs in <b>Demo Mode</b> automatically.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-info">
+          <p>Signed in as: <b id="s-email"></b></p>
+          <button class="btn-clear-all" onclick="handleLogout()">🚪 Sign Out</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Budget Modal -->
+<div class="modal-bg hidden" id="budget-modal" onclick="closeModal('budget-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title">💰 Set Monthly Budget</div>
+    <p style="font-size:.82rem;color:var(--text2);margin-bottom:1rem">Set how much you plan to spend this month. You'll get alerts at 75% and 90%.</p>
+    <div class="form-field"><label>Monthly Budget Amount</label><input type="number" id="bm-amount" class="field-inp" placeholder="e.g. 20000" onkeydown="if(event.key==='Enter')saveBudget()"/></div>
+    <div class="modal-acts">
+      <button class="btn-clear-all" onclick="closeModal('budget-modal')">Cancel</button>
+      <button class="btn-process" onclick="saveBudget()">Save Budget</button>
+    </div>
+  </div>
+</div>
+
+<!-- Goal Modal -->
+<div class="modal-bg hidden" id="goal-modal" onclick="closeModal('goal-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title">🎯 New Savings Goal</div>
+    <div class="avatar-picker" id="goal-emoji-picker" style="justify-content:center;margin-bottom:1rem">🏠 🚗 ✈️ 💻 📱 🎓 💍 🎸 🏖️ 📚 🏋️ 🎮</div>
+    <input type="hidden" id="goal-emoji" value="🏠"/>
+    <div class="form-field"><label>Goal Name</label><input type="text" id="goal-name" class="field-inp" placeholder="e.g. New Laptop, Vacation Fund"/></div>
+    <div class="two-inp-row">
+      <div class="inp-col"><div class="field-lbl">Target Amount</div><input type="number" id="goal-target" class="field-inp" placeholder="50000"/></div>
+      <div class="inp-col"><div class="field-lbl">Target Deadline</div><input type="date" id="goal-deadline" class="field-inp"/></div>
+    </div>
+    <div class="modal-acts">
+      <button class="btn-clear-all" onclick="closeModal('goal-modal')">Cancel</button>
+      <button class="btn-process" onclick="saveGoal()">Create Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contribute to Goal Modal -->
+<div class="modal-bg hidden" id="contribute-modal" onclick="closeModal('contribute-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title" id="contribute-title">Add to Goal</div>
+    <div class="form-field"><label>Amount to add</label><input type="number" id="contribute-amt" class="field-inp" placeholder="500" onkeydown="if(event.key==='Enter')contributeToGoal()"/></div>
+    <div class="modal-acts">
+      <button class="btn-clear-all" onclick="closeModal('contribute-modal')">Cancel</button>
+      <button class="btn-process" onclick="contributeToGoal()">Add Savings</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category Budget Modal -->
+<div class="modal-bg hidden" id="catbudget-modal" onclick="closeModal('catbudget-modal',event)">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-title">📊 Set Category Budgets</div>
+    <p style="font-size:.82rem;color:var(--text2);margin-bottom:.875rem">Set monthly spending limits per category. Leave blank to skip.</p>
+    <div id="catbudget-fields" style="max-height:340px;overflow-y:auto;margin-bottom:1rem"></div>
+    <div class="modal-acts">
+      <button class="btn-clear-all" onclick="closeModal('catbudget-modal')">Cancel</button>
+      <button class="btn-process" onclick="saveCatBudgets()">Save Limits</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Expense Modal -->
+<div class="modal-bg hidden" id="edit-modal" onclick="closeModal('edit-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title">✏️ Edit Expense</div>
+    <input type="hidden" id="edit-id"/>
+    <div class="form-field"><label>Amount</label><input type="number" id="edit-amount" class="field-inp"/></div>
+    <div class="form-field"><label>Note / Description</label><input type="text" id="edit-note" class="field-inp"/></div>
+    <div class="form-field"><label>Date</label><input type="date" id="edit-date" class="field-inp"/></div>
+    <div class="form-field"><label>Category</label>
+      <select id="edit-cat" class="field-inp"></select>
+    </div>
+    <div class="modal-acts">
+      <button class="btn-clear-all" onclick="closeModal('edit-modal')">Cancel</button>
+      <button class="btn-process" onclick="saveEdit()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- Recurring Bill Modal -->
+<div class="modal-bg hidden" id="recurring-modal" onclick="closeModal('recurring-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title">🔄 Add Recurring Bill</div>
+    <div class="form-field"><label>Bill Name</label><input type="text" id="rec-name" class="field-inp" placeholder="Netflix, Rent, EMI, Insurance…"/></div>
+    <div class="two-inp-row">
+      <div class="inp-col"><div class="field-lbl">Amount</div><input type="number" id="rec-amount" class="field-inp" placeholder="499"/></div>
+      <div class="inp-col"><div class="field-lbl">Day of Month</div><input type="number" id="rec-day" class="field-inp" min="1" max="31" placeholder="1–31"/></div>
+    </div>
+    <div class="form-field"><label>Category</label><select id="rec-cat" class="field-inp"></select></div>
+    <div class="modal-acts">
+      <button class="btn-clear-all" onclick="closeModal('recurring-modal')">Cancel</button>
+      <button class="btn-process" onclick="saveRecurring()">Save Bill</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Income Modal -->
+<div class="modal-bg hidden" id="add-income-modal" onclick="closeModal('add-income-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title">💵 Add Income</div>
+    <div class="form-field"><label>Amount</label><input type="number" id="income-amount" class="field-inp" placeholder="e.g. 50000" oninput="updateIncClosingBal()" onkeydown="if(event.key==='Enter')addIncome()"/></div>
+    <div class="form-field"><label>Source / Description</label><input type="text" id="income-source" class="field-inp" placeholder="Salary, Freelance, Bonus…" onkeydown="if(event.key==='Enter')addIncome()"/></div>
+    <div class="form-field"><label>Type</label>
+      <select id="income-type" class="field-inp">
+        <option value="salary">💼 Salary</option>
+        <option value="freelance">💻 Freelance</option>
+        <option value="business">🏪 Business</option>
+        <option value="investment">📊 Investment / Dividend</option>
+        <option value="rental">🏠 Rental Income</option>
+        <option value="gift">🎁 Gift / Transfer</option>
+        <option value="other">💰 Other</option>
+      </select>
+    </div>
+    <div class="two-inp-row">
+      <div class="inp-col"><div class="field-lbl">Date</div><input type="date" id="income-date" class="field-inp"/></div>
+      <div class="inp-col flex2"><div class="field-lbl">Note (optional)</div><input type="text" id="income-note" class="field-inp" placeholder="Any extra details"/></div>
+    </div>
+    <div class="form-field">
+      <label>Credit to Account <span style="font-size:.72rem;color:var(--text3)">(choose which account receives this income)</span></label>
+      <select id="income-account" class="field-inp" onchange="updateIncClosingBal()">
+        <option value="">— No account selected —</option>
+      </select>
+      <div class="closing-bal-hint" id="inc-closing-bal" style="margin-top:.35rem"></div>
+    </div>
+    <div class="modal-acts">
+      <button class="btn-clear-all" onclick="closeModal('add-income-modal')">Cancel</button>
+      <button class="btn-process" style="background:linear-gradient(135deg,#059669,#10b981)" onclick="addIncome()">Add Income</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Account Modal -->
+<div class="modal-bg hidden" id="add-account-modal" onclick="closeModal('add-account-modal',event)">
+  <div class="modal-box">
+    <div class="modal-title">💳 Create New Account</div>
+    <div class="form-field">
+      <label>Account Name *</label>
+      <input type="text" id="acc-name" class="field-inp" placeholder="e.g. Savings, Salary, Cash Wallet"/>
+    </div>
+    <div class="form-field">
+      <label>Account Type</label>
+      <select id="acc-type" class="field-inp">
+        <option value="savings">🏦 Savings Account</option>
+        <option value="salary">💼 Salary Account</option>
+        <option value="cash">💵 Cash / Wallet</option>
+        <option value="credit">💳 Credit Card</option>
+        <option value="investment">📊 Investment Account</option>
+        <option value="other">🏧 Other</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Opening Balance (current money in this account)</label>
+      <input type="number" id="acc-opening" class="field-inp" placeholder="0.00" min="0" step="0.01"/>
+    </div>
+    <div class="modal-acts">
+      <button class="btn-clear-all" onclick="closeModal('add-account-modal')">Cancel</button>
+      <button class="btn-process" onclick="addAccount()">✅ Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-bg hidden" id="delete-modal">
+  <div class="modal-box">
+    <div class="modal-title">🗑 Delete Expense?</div>
+    <p style="color:var(--text2);margin-bottom:1.5rem;font-size:.875rem">This action cannot be undone. The expense will be permanently deleted.</p>
+    <div class="modal-acts">
+      <button class="btn-clear-all" onclick="closeModal('delete-modal')">Cancel</button>
+      <button class="btn-process" style="background:#dc2626" id="delete-confirm-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script src="/js/firebase-config.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>
