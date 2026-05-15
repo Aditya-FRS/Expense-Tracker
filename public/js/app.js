@@ -69,12 +69,11 @@ function demoSave(k,v){ localStorage.setItem(demoKey(k), JSON.stringify(v)); }
 // Auto-fill email from Render env var (APP_EMAIL)
 async function loadAppEmail() {
   try {
-    const res   = await fetch('/api/app-email');
+    const res = await fetch('/api/app-email');
     const { email } = await res.json();
     const inp = document.getElementById('login-email');
-    if (inp) {
-      inp.value       = email || '';
-      inp.placeholder = email ? email : 'Not configured';
+    if (inp && email) {
+      inp.value = email;  // pre-fill — user can still edit if needed
     }
   } catch(e) { console.warn('Could not load app email', e); }
 }
@@ -84,6 +83,11 @@ async function handleLogin() {
   const pass  = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
   errEl.classList.add('hidden');
+  if (!email) {
+    errEl.textContent = 'Enter your email address';
+    errEl.classList.remove('hidden');
+    return;
+  }
   if (!pass) {
     errEl.textContent = 'Enter your password';
     errEl.classList.remove('hidden');
