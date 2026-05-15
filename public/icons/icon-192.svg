@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb"/>
+      <stop offset="100%" style="stop-color:#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="42" fill="url(#bg)"/>
+  <text x="96" y="80" font-size="14" font-family="Arial,sans-serif" font-weight="700" fill="rgba(255,255,255,0.7)" text-anchor="middle">EXPENSE</text>
+  <text x="96" y="125" font-size="56" text-anchor="middle">💰</text>
+  <text x="96" y="155" font-size="13" font-family="Arial,sans-serif" font-weight="600" fill="rgba(255,255,255,0.8)" text-anchor="middle">TRACKER PRO</text>
+</svg>
