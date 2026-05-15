@@ -151,37 +151,32 @@ async function setupAuthListener() {
   if (window.DEMO_MODE) return;
   auth.onAuthStateChanged(async user => {
     if (user) {
+      S.uid = user.uid;
+
+      // Step 1 — load profile (use defaults if Firestore not ready)
       try {
-        S.uid = user.uid;
         let prof = await FS.getUser(user.uid);
         if (!prof) {
           prof = { name: user.displayName || user.email.split('@')[0], avatar:'👤', budget:20000, currency:'INR', email: user.email };
-          await FS.setUser(user.uid, prof);
+          await FS.setUser(user.uid, prof).catch(()=>{});
         }
         S.profile = { ...prof, email: user.email };
-        await loadAllData();
-        bootApp();
       } catch(e) {
-        // Firestore error — show message and reset button so user can try again
-        console.error('[Auth] Data load failed:', e);
-        const errEl = document.getElementById('login-error');
-        if (errEl) {
-          let msg = 'Signed in but failed to load data. ';
-          if (e.code === 'permission-denied' || e.message?.includes('permission')) {
-            msg += 'Check your Firestore security rules in Firebase Console.';
-          } else if (e.code === 'unavailable') {
-            msg += 'Firestore is unavailable — check your internet connection.';
-          } else {
-            msg += (e.message || 'Try refreshing the page.');
-          }
-          errEl.textContent = msg;
-          errEl.classList.remove('hidden');
-        }
-        setLoading('login-btn', false, '🔐 Sign In');
-        await auth.signOut();
+        console.warn('[Auth] Could not load profile, using defaults:', e.message);
+        S.profile = { name: user.email.split('@')[0], avatar:'👤', budget:20000, currency:'INR', email: user.email };
       }
+
+      // Step 2 — load all data (continue even if it fails)
+      try {
+        await loadAllData();
+      } catch(e) {
+        console.warn('[Auth] Could not load data:', e.message);
+      }
+
+      // Step 3 — always boot the app
+      bootApp();
+
     } else {
-      // User signed out — reset button in case it was stuck
       setLoading('login-btn', false, '🔐 Sign In');
       showAuthScreen();
     }
