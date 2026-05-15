@@ -125,16 +125,44 @@ async function handleLogin() {
 
   // ── Step 3: Firebase authentication ──────────────────────────
   try {
-    await auth.signInWithEmailAndPassword(email, pass);
-    // onAuthStateChanged() takes over from here → calls bootApp()
+    const cred = await auth.signInWithEmailAndPassword(email, pass);
+    // ✅ Boot the app directly here — do NOT rely solely on onAuthStateChanged
+    // (errors inside onAuthStateChanged callbacks are silently swallowed)
+    S.uid = cred.user.uid;
+
+    // Load profile
+    try {
+      let prof = await FS.getUser(S.uid);
+      if (!prof) {
+        prof = { name: cred.user.displayName || email.split('@')[0] || 'Owner', avatar:'👤', budget:20000, currency:'INR', email };
+        FS.setUser(S.uid, prof).catch(()=>{});
+      }
+      S.profile = { ...prof, email };
+    } catch(e) {
+      console.warn('[Login] Profile load failed, using defaults:', e.message);
+      S.profile = { name: email.split('@')[0] || 'Owner', avatar:'👤', budget:20000, currency:'INR', email };
+    }
+
+    // Load data (don't block on errors)
+    try { await loadAllData(); } catch(e) { console.warn('[Login] Data load failed:', e.message); }
+
+    // Boot — wrapped so any render error can't keep screen stuck
+    try {
+      bootApp();
+    } catch(e) {
+      console.error('[Login] bootApp threw:', e);
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+    }
+
   } catch(e) {
     const map = {
       'auth/wrong-password':        'Incorrect password. Check and try again.',
       'auth/invalid-credential':    'Incorrect email or password. Check and try again.',
-      'auth/user-not-found':        'No Firebase account found for this email. Create it in Firebase Console → Authentication → Users.',
+      'auth/user-not-found':        'No Firebase account found for this email.',
       'auth/invalid-email':         'Invalid email format.',
       'auth/user-disabled':         'This account has been disabled.',
-      'auth/too-many-requests':     'Too many failed attempts — wait a few minutes and try again.',
+      'auth/too-many-requests':     'Too many failed attempts — wait a few minutes.',
       'auth/network-request-failed':'Network error — check your internet connection.',
     };
     loginError(errEl, map[e.code] || ('Firebase error: ' + (e.message || e.code)));
