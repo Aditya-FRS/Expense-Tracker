@@ -173,8 +173,16 @@ async function setupAuthListener() {
         console.warn('[Auth] Could not load data:', e.message);
       }
 
-      // Step 3 — always boot the app
-      bootApp();
+      // Step 3 — always boot the app (must be wrapped — errors in async callbacks are silently swallowed)
+      try {
+        bootApp();
+      } catch(e) {
+        console.error('[Auth] bootApp threw:', e);
+        // Fallback: force-show the app screen even if bootApp partially failed
+        document.getElementById('auth-screen')?.classList.add('hidden');
+        document.getElementById('app')?.classList.remove('hidden');
+        try { switchTab('dashboard'); } catch(_) {}
+      }
 
     } else {
       setLoading('login-btn', false, '🔐 Sign In');
@@ -247,10 +255,10 @@ function bootApp() {
   document.getElementById('app').classList.remove('hidden');
   ['hdr-avatar','sf-avatar'].forEach(id => setEl(id, S.profile.avatar));
   ['hdr-name','sf-name'].forEach(id    => setEl(id, S.profile.name));
-  document.getElementById('s-email').textContent    = S.profile.email || '';
-  document.getElementById('s-name').value           = S.profile.name;
-  document.getElementById('s-budget').value         = S.profile.budget;
-  document.getElementById('s-currency').value       = S.profile.currency || 'INR';
+  const sEmail = document.getElementById('s-email');   if (sEmail)    sEmail.textContent   = S.profile.email || '';
+  const sName  = document.getElementById('s-name');    if (sName)     sName.value          = S.profile.name  || '';
+  const sBudget= document.getElementById('s-budget');  if (sBudget)   sBudget.value        = S.profile.budget || 20000;
+  const sCur   = document.getElementById('s-currency');if (sCur)      sCur.value           = S.profile.currency || 'INR';
   buildCategoryGrids();
   updateMonthLabel();
   checkRecurringDue();
@@ -427,7 +435,7 @@ function renderDashboard() {
 
   const recentEl = document.getElementById('recent-list');
   const recent   = [...exps].sort((a,b) => b.date.localeCompare(a.date)).slice(0,6);
-  recentEl.innerHTML = recent.length ? recent.map(e => expRow(e)).join('') : emptyState('No expenses this month','🧾');
+  if (recentEl) recentEl.innerHTML = recent.length ? recent.map(e => expRow(e)).join('') : emptyState('No expenses this month','🧾');
 
   renderTopCats(exps, document.getElementById('top-cats'));
 }
