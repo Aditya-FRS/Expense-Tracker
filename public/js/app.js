@@ -143,10 +143,7 @@ async function handleLogin() {
       S.profile = { name: email.split('@')[0] || 'Owner', avatar:'👤', budget:20000, currency:'INR', email };
     }
 
-    // Load data (don't block on errors)
-    try { await loadAllData(); } catch(e) { console.warn('[Login] Data load failed:', e.message); }
-
-    // Boot — wrapped so any render error can't keep screen stuck
+    // ✅ Boot app IMMEDIATELY — don't wait for data
     try {
       bootApp();
     } catch(e) {
@@ -154,6 +151,11 @@ async function handleLogin() {
       document.getElementById('auth-screen').classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
     }
+
+    // Load data in background AFTER app is visible
+    loadAllData()
+      .then(() => { try { if (typeof TAB_RENDERS !== 'undefined' && TAB_RENDERS[S.tab]) TAB_RENDERS[S.tab](); } catch(_){} })
+      .catch(e => console.warn('[Login] Background data load failed:', e.message));
 
   } catch(e) {
     const map = {
@@ -194,23 +196,19 @@ async function setupAuthListener() {
         S.profile = { name: user.email.split('@')[0], avatar:'👤', budget:20000, currency:'INR', email: user.email };
       }
 
-      // Step 2 — load all data (continue even if it fails)
-      try {
-        await loadAllData();
-      } catch(e) {
-        console.warn('[Auth] Could not load data:', e.message);
-      }
-
-      // Step 3 — always boot the app (must be wrapped — errors in async callbacks are silently swallowed)
+      // Step 2 — boot app immediately, load data in background
       try {
         bootApp();
       } catch(e) {
         console.error('[Auth] bootApp threw:', e);
-        // Fallback: force-show the app screen even if bootApp partially failed
         document.getElementById('auth-screen')?.classList.add('hidden');
         document.getElementById('app')?.classList.remove('hidden');
-        try { switchTab('dashboard'); } catch(_) {}
       }
+
+      // Load data after app is visible
+      loadAllData()
+        .then(() => { try { if (typeof TAB_RENDERS !== 'undefined' && TAB_RENDERS[S.tab]) TAB_RENDERS[S.tab](); } catch(_){} })
+        .catch(e => console.warn('[Auth] Background data load failed:', e.message));
 
     } else {
       setLoading('login-btn', false, '🔐 Sign In');
