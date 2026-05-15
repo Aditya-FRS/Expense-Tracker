@@ -78,57 +78,66 @@ async function loadAppEmail() {
   } catch(e) { console.warn('Could not load app email', e); }
 }
 
+function loginError(errEl, msg) {
+  errEl.textContent = msg;
+  errEl.classList.remove('hidden');
+  setLoading('login-btn', false, '🔐 Sign In');
+}
+
 async function handleLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
   errEl.classList.add('hidden');
-  if (!email) {
-    errEl.textContent = 'Enter your email address';
-    errEl.classList.remove('hidden');
-    return;
-  }
-  if (!pass) {
-    errEl.textContent = 'Enter your password';
-    errEl.classList.remove('hidden');
-    return;
-  }
+
+  if (!email) return loginError(errEl, 'Enter your email address');
+  if (!pass)  return loginError(errEl, 'Enter your password');
+
   setLoading('login-btn', true, 'Signing in…');
+
+  // ── Step 1: server credential check ──────────────────────────
+  let checkOk = false;
   try {
-    // Step 1 — server validates against APP_EMAIL + APP_PASSWORD env vars
-    const check = await fetch('/api/verify-login', {
+    const res = await fetch('/api/verify-login', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ email, password: pass }),
     });
-    if (!check.ok) {
-      errEl.textContent = 'Incorrect password. Try again.';
-      errEl.classList.remove('hidden');
-      setLoading('login-btn', false, '🔐 Sign In');
-      return;
-    }
-    // Step 2 — Firebase auth (skipped if Firebase not configured)
-    if (!window.DEMO_MODE) {
-      await auth.signInWithEmailAndPassword(email, pass);
-      // onAuthStateChanged handles the rest
-    } else {
-      // No Firebase — grant access locally after server check passes
+    checkOk = res.ok;
+  } catch(e) {
+    return loginError(errEl, 'Cannot reach server — check your internet connection.');
+  }
+
+  if (!checkOk) return loginError(errEl, 'Incorrect email or password. Try again.');
+
+  // ── Step 2: local mode (Firebase not configured) ──────────────
+  if (window.DEMO_MODE) {
+    try {
       S.uid     = 'owner';
       S.profile = { name: email.split('@')[0] || 'Owner', avatar:'👤', budget:20000, currency:'INR', email };
       await loadAllData();
       bootApp();
+    } catch(e) {
+      loginError(errEl, 'Failed to load data. Try refreshing.');
     }
+    return;
+  }
+
+  // ── Step 3: Firebase authentication ──────────────────────────
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+    // onAuthStateChanged() takes over from here → calls bootApp()
   } catch(e) {
-    const msg = e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential'
-      ? 'Incorrect password. Try again.'
-      : e.code === 'auth/too-many-requests'
-      ? 'Too many attempts — wait a moment and try again.'
-      : e.code === 'auth/network-request-failed'
-      ? 'Network error — check your internet connection.'
-      : 'Sign in failed. Try again.';
-    errEl.textContent = msg;
-    errEl.classList.remove('hidden');
-    setLoading('login-btn', false, '🔐 Sign In');
+    const map = {
+      'auth/wrong-password':        'Incorrect password. Check and try again.',
+      'auth/invalid-credential':    'Incorrect email or password. Check and try again.',
+      'auth/user-not-found':        'No Firebase account found for this email. Create it in Firebase Console → Authentication → Users.',
+      'auth/invalid-email':         'Invalid email format.',
+      'auth/user-disabled':         'This account has been disabled.',
+      'auth/too-many-requests':     'Too many failed attempts — wait a few minutes and try again.',
+      'auth/network-request-failed':'Network error — check your internet connection.',
+    };
+    loginError(errEl, map[e.code] || ('Firebase error: ' + (e.message || e.code)));
   }
 }
 
@@ -142,16 +151,38 @@ async function setupAuthListener() {
   if (window.DEMO_MODE) return;
   auth.onAuthStateChanged(async user => {
     if (user) {
-      S.uid = user.uid;
-      let prof = await FS.getUser(user.uid);
-      if (!prof) {
-        prof = { name: user.displayName || user.email.split('@')[0], avatar:'😎', budget:20000, currency:'INR', email:user.email };
-        await FS.setUser(user.uid, prof);
+      try {
+        S.uid = user.uid;
+        let prof = await FS.getUser(user.uid);
+        if (!prof) {
+          prof = { name: user.displayName || user.email.split('@')[0], avatar:'👤', budget:20000, currency:'INR', email: user.email };
+          await FS.setUser(user.uid, prof);
+        }
+        S.profile = { ...prof, email: user.email };
+        await loadAllData();
+        bootApp();
+      } catch(e) {
+        // Firestore error — show message and reset button so user can try again
+        console.error('[Auth] Data load failed:', e);
+        const errEl = document.getElementById('login-error');
+        if (errEl) {
+          let msg = 'Signed in but failed to load data. ';
+          if (e.code === 'permission-denied' || e.message?.includes('permission')) {
+            msg += 'Check your Firestore security rules in Firebase Console.';
+          } else if (e.code === 'unavailable') {
+            msg += 'Firestore is unavailable — check your internet connection.';
+          } else {
+            msg += (e.message || 'Try refreshing the page.');
+          }
+          errEl.textContent = msg;
+          errEl.classList.remove('hidden');
+        }
+        setLoading('login-btn', false, '🔐 Sign In');
+        await auth.signOut();
       }
-      S.profile = { ...prof, email: user.email };
-      await loadAllData();
-      bootApp();
     } else {
+      // User signed out — reset button in case it was stuck
+      setLoading('login-btn', false, '🔐 Sign In');
       showAuthScreen();
     }
   });
