@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: expense-tracker-pro
+    env: node
+    region: singapore   # closest to India
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_EMAIL
+        sync: false        # Your login email (only this email can access the app)
+      - key: APP_PASSWORD
+        sync: false        # Your login password (must match Firebase Auth password)
+      - key: FIREBASE_API_KEY
+        sync: false        # set manually in Render dashboard
+      - key: FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: FIREBASE_APP_ID
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false        # Personal Access Token with contents:write
+      - key: GITHUB_OWNER
+        sync: false        # Your GitHub username
+      - key: GITHUB_REPO
+        sync: false        # Repo name for storing receipts (e.g. expense-receipts)
+      - key: GITHUB_BRANCH
+        value: main

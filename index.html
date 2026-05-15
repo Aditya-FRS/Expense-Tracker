@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expense Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════
+     LOGIN SCREEN
+════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-title">
+      <span class="login-icon">💰</span>
+      <h1>Expense Tracker</h1>
+      <p>Select your profile to continue</p>
+    </div>
+
+    <!-- Profile Cards -->
+    <div class="profile-grid" id="profile-grid">
+      <div class="profile-card" data-user="vamsi" onclick="selectProfile(this)">
+        <div class="profile-avatar">😎</div>
+        <div class="profile-name">Vamsi</div>
+      </div>
+      <div class="profile-card" data-user="family" onclick="selectProfile(this)">
+        <div class="profile-avatar">👨‍👩‍👧</div>
+        <div class="profile-name">Family</div>
+      </div>
+      <div class="profile-card" data-user="savings" onclick="selectProfile(this)">
+        <div class="profile-avatar">🐷</div>
+        <div class="profile-name">Savings</div>
+      </div>
+    </div>
+
+    <!-- Login Form -->
+    <div class="login-form">
+      <div class="form-field">
+        <label>Username</label>
+        <input type="text" id="login-username" placeholder="Enter username" autocomplete="off" />
+      </div>
+      <div class="form-field">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter password" />
+      </div>
+      <div class="login-error hidden" id="login-error">Incorrect username or password</div>
+      <button class="btn-login" onclick="handleLogin()">Login</button>
+    </div>
+
+    <p class="login-hint">Demo: any username + password "1234"</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════
+     MAIN APP
+════════════════════════════════ -->
+<div id="app" class="hidden">
+
+  <!-- TOP HEADER -->
+  <header class="app-header">
+    <div class="header-left">
+      <span class="app-logo">💰</span>
+      <span class="app-title">Expense Tracker</span>
+    </div>
+    <div class="header-center">
+      <!-- Month Nav -->
+      <div class="month-nav">
+        <button class="month-btn" onclick="changeMonth(-1)">&#8249;</button>
+        <span id="month-label" class="month-text">May 2026</span>
+        <button class="month-btn" onclick="changeMonth(1)">&#8250;</button>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="user-chip" onclick="toggleUserMenu()">
+        <span id="header-avatar" class="chip-avatar">😎</span>
+        <span id="header-name" class="chip-name">Vamsi</span>
+        <span class="chip-arrow">▾</span>
+      </div>
+      <div class="user-menu hidden" id="user-menu">
+        <div class="user-menu-item" onclick="openBudgetSetting()">⚙️ Set Monthly Budget</div>
+        <div class="user-menu-item" onclick="handleLogout()">🚪 Logout</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- TAB NAV -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('dashboard')" id="tab-dashboard">📊 Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('add')" id="tab-add">➕ Add Expense</button>
+    <button class="tab-btn" onclick="switchTab('history')" id="tab-history">📋 History</button>
+    <button class="tab-btn" onclick="switchTab('charts')" id="tab-charts">📈 Charts</button>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main class="app-content">
+
+    <!-- ── DASHBOARD TAB ── -->
+    <section id="view-dashboard" class="view active">
+
+      <!-- Summary Cards -->
+      <div class="summary-row">
+        <div class="summary-card blue">
+          <div class="summary-icon">💸</div>
+          <div class="summary-body">
+            <div class="summary-label">Total Spent</div>
+            <div class="summary-value" id="dash-total">₹0</div>
+          </div>
+        </div>
+        <div class="summary-card green">
+          <div class="summary-icon">🏦</div>
+          <div class="summary-body">
+            <div class="summary-label">Budget Left</div>
+            <div class="summary-value" id="dash-left">₹0</div>
+          </div>
+        </div>
+        <div class="summary-card orange">
+          <div class="summary-icon">🧾</div>
+          <div class="summary-body">
+            <div class="summary-label">Transactions</div>
+            <div class="summary-value" id="dash-count">0</div>
+          </div>
+        </div>
+        <div class="summary-card purple">
+          <div class="summary-icon">📅</div>
+          <div class="summary-body">
+            <div class="summary-label">Daily Average</div>
+            <div class="summary-value" id="dash-avg">₹0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Budget Progress -->
+      <div class="panel" id="budget-panel">
+        <div class="panel-header">
+          <span>Monthly Budget</span>
+          <button class="link-btn" onclick="openBudgetSetting()">Edit</button>
+        </div>
+        <div class="budget-track-wrap">
+          <div class="budget-bar-bg">
+            <div class="budget-bar-fill" id="budget-bar-fill"></div>
+          </div>
+          <div class="budget-bar-labels">
+            <span id="budget-spent-label">₹0 spent</span>
+            <span id="budget-total-label">₹0 budget</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Add Shortcut -->
+      <div class="panel quick-add-panel">
+        <div class="panel-header"><span>⚡ Quick Add Expense</span></div>
+        <div class="quick-add-row">
+          <input type="number" id="quick-amount" class="quick-amount-input" placeholder="₹ Amount" min="0" />
+          <div class="quick-cats" id="quick-cats"></div>
+          <input type="text" id="quick-note" class="quick-note-input" placeholder="Note (optional)" />
+          <button class="btn-process" onclick="quickAddExpense()">⚡ Add</button>
+        </div>
+      </div>
+
+      <!-- Recent Expenses -->
+      <div class="panel">
+        <div class="panel-header">
+          <span>Recent Expenses</span>
+          <button class="link-btn" onclick="switchTab('history')">View All →</button>
+        </div>
+        <div id="recent-list" class="expense-list"></div>
+      </div>
+
+      <!-- Top Categories -->
+      <div class="panel">
+        <div class="panel-header"><span>Top Categories This Month</span></div>
+        <div id="top-cats" class="top-cats-list"></div>
+      </div>
+    </section>
+
+    <!-- ── ADD EXPENSE TAB ── -->
+    <section id="view-add" class="view">
+      <div class="add-expense-card">
+        <h2 class="add-title">Add New Expense</h2>
+
+        <!-- Amount -->
+        <div class="amount-field-wrap">
+          <span class="amount-prefix">₹</span>
+          <input type="number" id="add-amount" class="amount-big-input" placeholder="0.00" min="0" step="0.01" />
+        </div>
+
+        <!-- Category Picker -->
+        <div class="field-label">Category</div>
+        <div class="cat-grid" id="cat-grid"></div>
+        <input type="hidden" id="add-category" />
+
+        <!-- Date + Note Row -->
+        <div class="add-row">
+          <div class="add-field">
+            <div class="field-label">Date</div>
+            <input type="date" id="add-date" class="field-input" />
+          </div>
+          <div class="add-field flex-2">
+            <div class="field-label">Note</div>
+            <input type="text" id="add-note" class="field-input" placeholder="What was this for?" />
+          </div>
+        </div>
+
+        <!-- Payment Method -->
+        <div class="field-label">Payment Method</div>
+        <div class="payment-row">
+          <label class="pay-opt"><input type="radio" name="pay" value="UPI" checked /> 📱 UPI</label>
+          <label class="pay-opt"><input type="radio" name="pay" value="Cash" /> 💵 Cash</label>
+          <label class="pay-opt"><input type="radio" name="pay" value="Card" /> 💳 Card</label>
+          <label class="pay-opt"><input type="radio" name="pay" value="NetBanking" /> 🏦 Net Banking</label>
+        </div>
+
+        <!-- Double Punch style options -->
+        <div class="options-box">
+          <label class="check-opt">
+            <input type="checkbox" id="add-recurring" />
+            <div class="check-text">
+              <b>Mark as Recurring</b>
+              <span>Check this if this expense repeats every month</span>
+            </div>
+          </label>
+        </div>
+
+        <!-- Action Buttons (styled like screenshots) -->
+        <div class="action-buttons">
+          <button class="btn-process" onclick="addExpense()">⚡ Process Expense</button>
+          <button class="btn-clear" onclick="clearAddForm()">🗑 Clear All</button>
+        </div>
+
+        <!-- View Processed link -->
+        <button class="btn-view-processed" onclick="switchTab('history')">
+          👁 View Processed Expenses
+        </button>
+      </div>
+    </section>
+
+    <!-- ── HISTORY TAB ── -->
+    <section id="view-history" class="view">
+      <div class="panel">
+        <div class="panel-header">
+          <span id="history-title">Expenses — May 2026</span>
+          <div class="header-actions">
+            <select id="history-filter" class="filter-select" onchange="renderHistory()">
+              <option value="">All Categories</option>
+            </select>
+            <button class="btn-export" onclick="exportCSV()">⬇ Export</button>
+          </div>
+        </div>
+
+        <!-- Stats bar -->
+        <div class="history-stats" id="history-stats"></div>
+
+        <!-- List -->
+        <div id="history-list" class="expense-list"></div>
+      </div>
+    </section>
+
+    <!-- ── CHARTS TAB ── -->
+    <section id="view-charts" class="view">
+      <div class="charts-layout">
+        <div class="panel chart-panel">
+          <div class="panel-header"><span>Category Breakdown</span></div>
+          <div class="chart-wrap">
+            <canvas id="chart-donut"></canvas>
+            <div class="donut-center-label" id="donut-label"></div>
+          </div>
+          <div id="chart-legend" class="chart-legend-list"></div>
+        </div>
+
+        <div class="panel chart-panel">
+          <div class="panel-header"><span>6-Month Trend</span></div>
+          <div class="chart-wrap">
+            <canvas id="chart-trend"></canvas>
+          </div>
+        </div>
+
+        <div class="panel chart-panel">
+          <div class="panel-header"><span>Daily Spending — This Month</span></div>
+          <div class="chart-wrap">
+            <canvas id="chart-daily"></canvas>
+          </div>
+        </div>
+
+        <div class="panel chart-panel">
+          <div class="panel-header"><span>Payment Methods</span></div>
+          <div class="chart-wrap">
+            <canvas id="chart-payment"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════
+     BUDGET MODAL
+════════════════════════════════ -->
+<div class="modal-bg hidden" id="budget-modal-bg" onclick="closeBudgetModal(event)">
+  <div class="modal-box">
+    <div class="modal-title">⚙️ Set Monthly Budget</div>
+    <div class="form-field">
+      <label>Monthly Budget (₹)</label>
+      <input type="number" id="budget-input" class="field-input" placeholder="e.g. 20000" min="0" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-clear" onclick="closeBudgetModal()">Cancel</button>
+      <button class="btn-process" onclick="saveBudget()">Save Budget</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-bg hidden" id="delete-modal-bg">
+  <div class="modal-box">
+    <div class="modal-title">🗑 Delete Expense?</div>
+    <p style="color:#64748b;margin-bottom:1.5rem">This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn-clear" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn-process" style="background:#dc2626" id="delete-confirm-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
